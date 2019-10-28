@@ -1,0 +1,43 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata: 
+  name: nginx-ingress-controller
+  namespace: default
+spec: 
+  replicas: 1
+  template: 
+    metadata: 
+      labels: 
+        name: nginx-ingress
+    spec:
+      serviceAccount: nginx-ingress
+      containers: 
+        - name: nginx-ingress-controller
+          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.26.1
+          args:
+            - /nginx-ingress-controller
+            - --default-ssl-certificate=$(POD_NAMESPACE)/nginx-ingress-secret   #kubectl create secret tls nginx-ingress-secret --key nginx-ingress.key --cert nginx-ingress.crt
+            - --annotations-prefix=nginx.ingress.kubernetes.io
+            - --publish-service=$(POD_NAMESPACE)/nginx-ingress
+          env: 
+            - name: POD_NAME
+              valueFrom: 
+                fieldRef: 
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom: 
+                fieldRef: 
+                  fieldPath: metadata.namespace
+          ports: 
+            - containerPort: 80
+              name: http
+            - containerPort: 443
+              name: https
+          livenessProbe: 
+            failureThreshold: 3
+            httpGet: 
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
